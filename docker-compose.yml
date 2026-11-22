@@ -1,0 +1,26 @@
+services:
+  mpi-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mpi-pablo-platform
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: sqlite:////app/data/mpi_platform.db
+      TRUST_PROXY_HEADERS: "true"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+    ports:
+      # Enlazado a localhost para exponerlo con seguridad detrás de Nginx + HTTPS
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    volumes:
+      # Base de datos SQLite persistente y fácil de respaldar en el VPS
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
