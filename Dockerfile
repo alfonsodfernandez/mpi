@@ -38,9 +38,12 @@ COPY _contexto_mpi/ ./_contexto_mpi/
 COPY backend/ ./backend/
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 
-# Crear directorio de datos persistentes y usuario sin privilegios
+# Crear directorio de datos persistentes y usuario sin privilegios (UID/GID 1000 por defecto, compatible con host Ubuntu/Debian)
+ARG APP_UID=1000
+ARG APP_GID=1000
 RUN mkdir -p /app/data && \
-    groupadd -r appuser && useradd -r -g appuser -d /app appuser && \
+    groupadd -g ${APP_GID} appuser && \
+    useradd -u ${APP_UID} -g ${APP_GID} -d /app -s /usr/sbin/nologin appuser && \
     chown -R appuser:appuser /app
 
 USER appuser

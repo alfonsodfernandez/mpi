@@ -24,12 +24,18 @@ sudo usermod -aG docker $USER
 ## 2. Clonar el repositorio y configurar credenciales (`.env`)
 
 ```bash
-git clone https://github.com/alfonsodfernandez/mpi.git /opt/mpi-pablo
-cd /opt/mpi-pablo
+git clone https://github.com/alfonsodfernandez/mpi.git /srv/apps/mpi
+cd /srv/apps/mpi
 cp .env.example .env
 ```
 
-Genera una clave criptográfica aleatoria y edita `.env` con tus contraseñas seguras:
+Comprueba qué puertos locales están ocupados por otras apps en tu VPS antes de elegir `APP_PORT` (por defecto `8000`):
+
+```bash
+ss -tulpn | grep LISTEN
+```
+
+Genera una clave criptográfica aleatoria y edita `.env` con tus contraseñas seguras y un puerto libre (p. ej. `8066` si el `8000` ya está en uso):
 
 ```bash
 openssl rand -hex 32
@@ -40,13 +46,13 @@ Asegúrate de configurar:
 - `SECRET_KEY`: pega el valor generado con `openssl rand -hex 32`.
 - `PABLO_USERNAME` y `PABLO_PASSWORD`: credenciales exclusivas de Pablo.
 - `ADMIN_USERNAME` y `ADMIN_PASSWORD`: tus credenciales privadas para `/admin`.
+- `APP_PORT`: puerto local libre (recuerda poner el mismo puerto en `proxy_pass` dentro de Nginx).
 - `COOKIE_SECURE=true` (cuando uses HTTPS con Nginx; usa `false` únicamente si pruebas en HTTP local sin TLS).
 
-Prepara la carpeta persistente de SQLite con permisos para el usuario del contenedor:
+Prepara la carpeta persistente de SQLite:
 
 ```bash
 mkdir -p data
-chmod 775 data
 ```
 
 ---
@@ -57,7 +63,7 @@ chmod 775 data
 docker compose up -d --build
 ```
 
-Comprueba que el servicio responde correctamente en `localhost`:
+Comprueba que el servicio responde correctamente en `localhost` (sustituye `8000` por tu `APP_PORT` si lo cambiaste):
 
 ```bash
 docker compose ps
@@ -105,8 +111,8 @@ sudo ufw enable
 Al usar SQLite en modo WAL (`./data/mpi_platform.db`), puedes realizar copias en caliente sin detener el contenedor usando `.backup`:
 
 ```bash
-mkdir -p /opt/backups-mpi
-(crontab -l 2>/dev/null; echo "0 3 * * * sqlite3 /opt/mpi-pablo/data/mpi_platform.db \".backup '/opt/backups-mpi/mpi_\$(date +\%F).db'\" && find /opt/backups-mpi -name 'mpi_*.db' -mtime +30 -delete") | crontab -
+mkdir -p ~/backups-mpi
+(crontab -l 2>/dev/null; echo "0 3 * * * sqlite3 /srv/apps/mpi/data/mpi_platform.db \".backup '\$HOME/backups-mpi/mpi_\$(date +\%F).db'\" && find \$HOME/backups-mpi -name 'mpi_*.db' -mtime +30 -delete") | crontab -
 ```
 
 ---
@@ -114,7 +120,7 @@ mkdir -p /opt/backups-mpi
 ## 6. Actualización y Mantenimiento
 
 ```bash
-cd /opt/mpi-pablo
+cd /srv/apps/mpi
 git pull
 docker compose up -d --build
 docker compose logs -f --tail=50
